@@ -1,5 +1,5 @@
 """AI Code Reviewer & Bug Fixing Agent
-Streamlit Web Application
+Streamlit Web Application powered by Google Gemini (google-genai SDK)
 """
 
 import os
@@ -133,13 +133,13 @@ def get_resolved_api_key(sidebar_key: Optional[str]) -> Optional[str]:
     
     # Check Streamlit Cloud secrets
     try:
-        if "ANTHROPIC_API_KEY" in st.secrets:
-            return st.secrets["ANTHROPIC_API_KEY"]
+        if "GEMINI_API_KEY" in st.secrets:
+            return st.secrets["GEMINI_API_KEY"]
     except Exception:
         pass
 
     # Check environment variable
-    return os.environ.get("ANTHROPIC_API_KEY")
+    return os.environ.get("GEMINI_API_KEY")
 
 
 # --- Sidebar Navigation & Settings ---
@@ -147,18 +147,18 @@ with st.sidebar:
     st.header("⚙️ Settings & Key")
 
     # Determine if API key already exists in env/secrets
-    env_api_key = os.environ.get("ANTHROPIC_API_KEY")
+    env_api_key = os.environ.get("GEMINI_API_KEY")
     secrets_key = None
     try:
-        if "ANTHROPIC_API_KEY" in st.secrets:
-            secrets_key = st.secrets["ANTHROPIC_API_KEY"]
+        if "GEMINI_API_KEY" in st.secrets:
+            secrets_key = st.secrets["GEMINI_API_KEY"]
     except Exception:
         pass
 
     has_preconfigured_key = bool(env_api_key or secrets_key)
 
     if has_preconfigured_key:
-        st.success("✅ `ANTHROPIC_API_KEY` detected from environment/secrets")
+        st.success("✅ `GEMINI_API_KEY` detected from environment/secrets")
         user_api_key = st.text_input(
             "Override API Key (Optional)",
             type="password",
@@ -167,20 +167,21 @@ with st.sidebar:
     else:
         st.warning("⚠️ No API Key found in environment or secrets.")
         user_api_key = st.text_input(
-            "Enter Anthropic API Key",
+            "Enter Gemini API Key",
             type="password",
-            help="Get your key at https://console.anthropic.com/"
+            help="Get your free key from Google AI Studio: https://aistudio.google.com/apikey"
         )
+        st.caption("👉 [Get a free API key at Google AI Studio](https://aistudio.google.com/apikey)")
 
     model_choice = st.selectbox(
-        "Claude Model",
+        "Gemini Model",
         options=[
-            "claude-3-7-sonnet-20250219",
-            "claude-3-5-sonnet-20241022",
-            "claude-3-5-haiku-20241022",
+            "gemini-2.5-flash",
+            "gemini-2.5-pro",
+            "gemini-3.7-flash",
         ],
         index=0,
-        help="Select the Anthropic Claude model to perform the review."
+        help="gemini-2.5-flash is stable, fast, and has a generous free tier."
     )
 
     st.markdown("---")
@@ -214,17 +215,18 @@ with st.sidebar:
     st.markdown("### ℹ️ About")
     st.caption(
         "**AI Code Reviewer & Bug Fixing Agent**\n"
-        "- **LLM Engine**: Anthropic Claude Sonnet\n"
+        "- **LLM Engine**: Google Gemini API (`google-genai`)\n"
+        "- **Default Model**: `gemini-2.5-flash`\n"
         "- **Framework**: Streamlit & Python\n"
-        "- **Deployable**: Streamlit Community Cloud\n"
-        "- **Features**: Bug detection, vulnerability scan, unified diff & instant full-code correction."
+        "- **Deployment**: Streamlit Community Cloud\n"
+        "- **Features**: Bug scan, vulnerability audit, structured JSON output, unified diff & full-code fix."
     )
 
 
 # --- Main Application Header ---
 st.title("🛡️ AI Code Reviewer & Bug Fixing Agent")
 st.markdown(
-    "Automated code review, security vulnerability detection, and production-ready bug fixing powered by Anthropic Claude."
+    "Automated code review, security vulnerability detection, and production-ready bug fixing powered by **Google Gemini** (`google-genai` SDK)."
 )
 
 st.markdown("---")
@@ -319,10 +321,11 @@ if review_button:
         st.error("Please provide code to review.")
     elif not resolved_api_key:
         st.error(
-            "API Key missing! Please enter your Anthropic API Key in the sidebar or set ANTHROPIC_API_KEY in your environment/secrets."
+            "API Key missing! Please enter your Gemini API Key in the sidebar or set GEMINI_API_KEY in your environment/secrets. "
+            "You can obtain a free key at https://aistudio.google.com/apikey"
         )
     else:
-        with st.spinner("🤖 Claude is analyzing code, inspecting security risks, and preparing fixes..."):
+        with st.spinner("🤖 Gemini is analyzing code, inspecting security risks, and preparing fixes..."):
             try:
                 results = review_code(
                     code=code_to_review,

@@ -1,8 +1,8 @@
 """Core logic for AI Code Reviewer:
 - GitHub raw content URL resolution and fetching
 - Language detection from file extensions
-- Anthropic Claude API prompt construction and invocation
-- Strict JSON parsing and validation
+- Google Gemini API (official google-genai SDK) prompt construction and execution
+- Strict JSON parsing, schema validation, and fallback handling
 - Unified diff generation between original and fixed code
 """
 
@@ -14,9 +14,13 @@ from typing import Dict, Any, Optional, Tuple
 import requests
 
 try:
-    import anthropic
+    from google import genai
+    from google.genai import types
+    from google.genai import errors as genai_errors
 except ImportError:
-    anthropic = None
+    genai = None
+    types = None
+    genai_errors = None
 
 EXTENSION_TO_LANGUAGE = {
     ".py": "python",
@@ -142,7 +146,6 @@ def parse_llm_json(raw_text: str) -> Dict[str, Any]:
 
     # Strip markdown code blocks like ```json ... ``` or ``` ... ```
     if text.startswith("```"):
-        # Match ```json ... ``` or ``` ... ```
         pattern = r"^```(?:json)?\s*\n?([\s\S]*?)\n?```$"
         match = re.match(pattern, text)
         if match:
@@ -215,9 +218,9 @@ def review_code(
     code: str,
     language: str = "auto",
     api_key: Optional[str] = None,
-    model: str = "claude-3-7-sonnet-20250219"
+    model: str = "gemini-2.5-flash"
 ) -> Dict[str, Any]:
-    """Sends code to Anthropic Claude API for bug detection, smell analysis, and automated fixing.
+    """Sends code to Google Gemini API using google-genai SDK for bug detection, smell analysis, and automated fixing.
 
     Returns:
         dict with keys: 'findings', 'fixed_code', 'summary'
@@ -227,20 +230,20 @@ def review_code(
 
     resolved_api_key = (
         api_key
-        or os.environ.get("ANTHROPIC_API_KEY")
+        or os.environ.get("GEMINI_API_KEY")
     )
 
     if not resolved_api_key:
         raise ValueError(
-            "ANTHROPIC_API_KEY is not set. Please provide it in the sidebar, in a .env file, or as an environment variable."
+            "GEMINI_API_KEY is not set. Get a free API key at https://aistudio.google.com/apikey and provide it in the sidebar or set GEMINI_API_KEY in your .env or Streamlit Secrets."
         )
 
-    if anthropic is None:
-        raise RuntimeError("The 'anthropic' package is not installed. Please run: pip install anthropic")
+    if genai is None:
+        raise RuntimeError("The 'google-genai' package is not installed. Please run: pip install google-genai")
 
-    client = anthropic.Anthropic(api_key=resolved_api_key)
+    client = genai.Client(api_key=resolved_api_key)
 
-    system_prompt = (
+    system_instruction = (
         "You are an elite principal software engineer, security researcher, and code auditor.\n"
         "Your task is to analyze user-provided code for:\n"
         "1. Critical bugs, runtime errors, unhandled exceptions, and logic flaws\n"
@@ -276,36 +279,35 @@ def review_code(
 {code}
 ```
 
-Remember: Output valid JSON only, conforming strictly to the requested schema."""
+Output valid JSON only, conforming strictly to the requested schema."""
+
+    config = None
+    if types is not None:
+        config = types.GenerateContentConfig(
+            system_instruction=system_instruction,
+            response_mime_type="application/json",
+            temperature=0.1,
+        )
 
     try:
-        response = client.messages.create(
+        response = client.models.generate_content(
             model=model,
-            max_tokens=4096,
-            temperature=0.1,
-            system=system_prompt,
-            messages=[
-                {"role": "user", "content": user_prompt}
-            ]
+            contents=user_prompt,
+            config=config
         )
-    except anthropic.AuthenticationError:
-        raise PermissionError("Anthropic API Authentication failed. Please check that your ANTHROPIC_API_KEY is valid.")
-    except anthropic.RateLimitError:
-        raise RuntimeError("Anthropic API rate limit exceeded. Please wait a moment and retry.")
-    except anthropic.BadRequestError as e:
-        raise ValueError(f"Anthropic API Bad Request: {str(e)}")
-    except anthropic.APIError as e:
-        raise RuntimeError(f"Anthropic API Error ({e.__class__.__name__}): {str(e)}")
     except Exception as e:
-        raise RuntimeError(f"Unexpected error calling Anthropic API: {str(e)}")
+        err_msg = str(e)
+        if "API_KEY" in err_msg.upper() or "PERMISSION_DENIED" in err_msg or "UNAUTHENTICATED" in err_msg:
+            raise PermissionError(f"Gemini API authentication error: Please verify your GEMINI_API_KEY from https://aistudio.google.com/apikey ({err_msg})")
+        elif "RESOURCE_EXHAUSTED" in err_msg or "429" in err_msg:
+            raise RuntimeError(f"Gemini API rate limit exceeded: {err_msg}")
+        elif "NOT_FOUND" in err_msg or "404" in err_msg:
+            raise ValueError(f"Model '{model}' not found or unavailable for your key: {err_msg}")
+        else:
+            raise RuntimeError(f"Gemini API Error: {err_msg}")
 
-    # Extract text response from content blocks
-    response_text = ""
-    for block in response.content:
-        if hasattr(block, "text"):
-            response_text += block.text
-
-    parsed_output = parse_llm_json(response_text)
+    result_text = getattr(response, "text", "") or ""
+    parsed_output = parse_llm_json(result_text)
 
     # If code had no findings and fixed_code is blank, restore original code
     if not parsed_output["fixed_code"]:

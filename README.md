@@ -1,6 +1,6 @@
 # 🛡️ AI Code Reviewer & Bug Fixing Agent
 
-> An autonomous, real-time code analysis and bug-fixing tool powered by Anthropic Claude and Streamlit. Paste any code snippet or public GitHub file URL to instantly detect bugs, security vulnerabilities, and code smells with severity tags, an interactive diff, and a production-ready fix.
+> An autonomous, real-time code analysis and bug-fixing tool powered by **Google Gemini** (`google-genai` SDK) and **Streamlit**. Paste any code snippet or public GitHub file URL to instantly detect bugs, security vulnerabilities, and code smells with severity tags, an interactive diff, and a production-ready fix.
 
 ---
 
@@ -21,7 +21,7 @@
 - **Interactive Unified Diff**: Side-by-side before/after comparison highlighting deleted buggy lines (`-`) and inserted fixes (`+`).
 - **GitHub URL Fetcher**: Accepts public GitHub file URLs (`blob` or `raw`), auto-converts them, and downloads the raw source code on the fly.
 - **Clean Code Verification**: Correctly recognizes clean, well-architected code without hallucinating false positives.
-- **One-Click Presets**: Preloaded test cases (Buggy Python with SQLi/Off-by-one, Clean Python, Buggy JavaScript) for quick zero-setup evaluation.
+- **Zero-Setup Presets**: Preloaded test cases (Buggy Python with SQLi/Off-by-one, Clean Python, Buggy JavaScript) for quick evaluation.
 
 ---
 
@@ -38,8 +38,9 @@
 [URL Converter & Fetcher]     [Prompt & Schema Builder]
 (raw.githubusercontent.com)             │
                                        ▼
-                         [Anthropic Claude API]
-                    (claude-3-7-sonnet-20250219)
+                          [Google Gemini API]
+                         (gemini-2.5-flash via
+                           google-genai SDK)
                                        │
                                        ▼
                          [Strict JSON Parser]
@@ -59,11 +60,11 @@
 ```text
 ai-code-reviewer/
 ├── README.md              # Project documentation, deployment guide, & approach write-up
-├── requirements.txt      # Production dependencies (streamlit, anthropic, requests, python-dotenv)
+├── requirements.txt      # Production dependencies (streamlit, google-genai, requests, python-dotenv)
 ├── app.py                 # Streamlit web application & UI dashboard
 ├── reviewer.py            # Core review agent, GitHub raw content fetcher, diff engine
 ├── test_reviewer.py       # Automated unit tests for URL parser, JSON extractor, and diffing
-├── .env.example           # Template for environment variables (ANTHROPIC_API_KEY)
+├── .env.example           # Template for environment variables (GEMINI_API_KEY)
 ├── .gitignore             # Excludes .env, secrets, cache, and virtual environments
 └── .streamlit/
     └── config.toml        # Professional dark theme & server configuration
@@ -84,20 +85,22 @@ cd ai-code-reviewer
 pip install -r requirements.txt
 ```
 
-### 3. Set your Anthropic API Key
-Copy `.env.example` to `.env` and fill in your API key:
+### 3. Set your Google Gemini API Key
+Get your free API key at [Google AI Studio](https://aistudio.google.com/apikey).
+
+Copy `.env.example` to `.env`:
 ```bash
 cp .env.example .env
 ```
 Edit `.env`:
 ```env
-ANTHROPIC_API_KEY=sk-ant-api03-...
+GEMINI_API_KEY=AIzaSy...
 ```
 *(Alternatively, you can launch the app and paste your API key directly into the sidebar).*
 
 ### 4. Run automated unit tests
 ```bash
-python -m unittest test_reviewer.py
+python test_reviewer.py
 ```
 
 ### 5. Launch the Streamlit application
@@ -130,9 +133,9 @@ Deploying takes under 3 minutes:
    - **Main file path**: `app.py` (or `ai-code-reviewer/app.py` if kept in a subfolder).
 4. **Set Secrets (API Key)**:
    - Click **Advanced settings...** before deploying (or go to **App settings > Secrets**).
-   - Add your Anthropic API key in TOML format:
+   - Add your Gemini API key in TOML format:
      ```toml
-     ANTHROPIC_API_KEY = "sk-ant-api03-..."
+     GEMINI_API_KEY = "AIzaSy..."
      ```
 5. **Deploy & Verify**:
    - Click **Deploy!**.
@@ -156,11 +159,11 @@ Deploying takes under 3 minutes:
 Developers frequently introduce subtle runtime bugs, security vulnerabilities (such as SQL injection or resource leaks), and code smells during rapid development cycles. Manually reviewing code or waiting for peer reviews creates bottlenecks, and traditional static analysis tools (linters) often lack the contextual intelligence to provide comprehensive, runnable fixes.
 
 ### Approach
-We designed a streamlined, single-tier architecture combining a **Streamlit** reactive web interface with Anthropic's **Claude 3.7 Sonnet** API via structured JSON prompt engineering. The reviewer enforces strict JSON output schema containing categorized findings (line number, severity, description, explanation) alongside a fully corrected code replacement. A built-in diff engine (`difflib`) generates immediate unified visual diffs, and an integrated HTTP fetcher converts public GitHub URLs into raw source streams for instant multi-language review.
+We designed a streamlined, single-tier architecture combining a **Streamlit** reactive web interface with Google's **Gemini 2.5 Flash** model via the official `google-genai` Python SDK. The reviewer requests strict JSON output adhering to a designated schema containing categorized findings (line number, severity, description, explanation) alongside a fully corrected code replacement. A built-in diff engine (`difflib`) generates immediate unified visual diffs, and an integrated HTTP fetcher converts public GitHub URLs into raw source streams for instant multi-language review.
 
 ### Tech Used
 - **Frontend & App Server**: Streamlit 1.62+
-- **LLM Reasoning Engine**: Anthropic Claude API (`claude-3-7-sonnet-20250219` / `claude-3-5-sonnet-20241022` via official `anthropic` Python SDK)
+- **LLM Reasoning Engine**: Google Gemini API (`gemini-2.5-flash` via the official `google-genai` Python SDK)
 - **Source Ingestion & HTTP**: Requests, regex URL normalizer
 - **Diff & Analysis**: Python `difflib` for unified diffs, JSON schema sanitization
 - **Configuration & Security**: `python-dotenv` and Streamlit Secrets management
