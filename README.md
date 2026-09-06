@@ -6,8 +6,10 @@
 
 ## 🚀 Live Demo & Deployment
 
+- **🌐 Live App**: **[https://ai-code-reviewer-hari.streamlit.app/](https://ai-code-reviewer-hari.streamlit.app/)**
+- **💻 GitHub Repo**: **[https://github.com/Harisankar005/ai-code-reviewer](https://github.com/Harisankar005/ai-code-reviewer)**
 - **Deployment Platform**: [Streamlit Community Cloud](https://streamlit.io/cloud)
-- **Status**: Ready to deploy in 1-click directly from GitHub
+- **Status**: 🟢 **Live & Operational**
 
 ---
 
@@ -76,7 +78,7 @@ ai-code-reviewer/
 
 ### 1. Clone the repository
 ```bash
-git clone <YOUR_REPO_URL>
+git clone https://github.com/Harisankar005/ai-code-reviewer.git
 cd ai-code-reviewer
 ```
 
