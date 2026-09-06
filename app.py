@@ -177,12 +177,14 @@ with st.sidebar:
         "Gemini Model",
         options=[
             "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-1.5-flash",
             "gemini-2.5-pro",
-            "gemini-3.7-flash",
         ],
         index=0,
-        help="gemini-2.5-flash is stable, fast, and has a generous free tier."
+        help="gemini-2.5-flash and flash models are free-tier friendly with 15 RPM / 1500 RPD."
     )
+    st.caption("⚡ *Free tier in Google AI Studio includes up to 15 Requests/Min & 1,500 Requests/Day for Flash models.*")
 
     st.markdown("---")
     st.subheader("🧪 Quick Test Presets")

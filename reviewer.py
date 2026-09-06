@@ -289,22 +289,42 @@ Output valid JSON only, conforming strictly to the requested schema."""
             temperature=0.1,
         )
 
-    try:
-        response = client.models.generate_content(
-            model=model,
-            contents=user_prompt,
-            config=config
+    # Candidate models for fallback if selected model is not available in free tier
+    fallback_models = [model]
+    for m in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]:
+        if m not in fallback_models:
+            fallback_models.append(m)
+
+    last_err = None
+    response = None
+
+    for candidate_model in fallback_models:
+        try:
+            response = client.models.generate_content(
+                model=candidate_model,
+                contents=user_prompt,
+                config=config
+            )
+            break
+        except Exception as e:
+            err_msg = str(e)
+            last_err = e
+            if "API_KEY" in err_msg.upper() or "PERMISSION_DENIED" in err_msg or "UNAUTHENTICATED" in err_msg:
+                raise PermissionError(
+                    f"Gemini API authentication error: Please verify your GEMINI_API_KEY from https://aistudio.google.com/apikey ({err_msg})"
+                )
+            elif "RESOURCE_EXHAUSTED" in err_msg or "429" in err_msg:
+                raise RuntimeError(f"Gemini API rate limit exceeded: {err_msg}")
+            elif "NOT_FOUND" in err_msg or "404" in err_msg:
+                # Try next fallback model
+                continue
+            else:
+                raise RuntimeError(f"Gemini API Error: {err_msg}")
+
+    if response is None:
+        raise ValueError(
+            f"Could not connect to model '{model}' or fallbacks ({', '.join(fallback_models)}): {str(last_err)}"
         )
-    except Exception as e:
-        err_msg = str(e)
-        if "API_KEY" in err_msg.upper() or "PERMISSION_DENIED" in err_msg or "UNAUTHENTICATED" in err_msg:
-            raise PermissionError(f"Gemini API authentication error: Please verify your GEMINI_API_KEY from https://aistudio.google.com/apikey ({err_msg})")
-        elif "RESOURCE_EXHAUSTED" in err_msg or "429" in err_msg:
-            raise RuntimeError(f"Gemini API rate limit exceeded: {err_msg}")
-        elif "NOT_FOUND" in err_msg or "404" in err_msg:
-            raise ValueError(f"Model '{model}' not found or unavailable for your key: {err_msg}")
-        else:
-            raise RuntimeError(f"Gemini API Error: {err_msg}")
 
     result_text = getattr(response, "text", "") or ""
     parsed_output = parse_llm_json(result_text)
